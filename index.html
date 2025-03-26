@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>小一數學題生成器</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        .problem { font-size: 24px; margin: 20px; padding: 10px; border: 1px dashed #ccc; }
+        button { padding: 10px 20px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>小一數學練習題</h1>
+    <div id="problems"></div>
+    <button onclick="generate()">生成新題目</button>
+
+    <script>
+        function generate() {
+            let html = '';
+            for (let i = 0; i < 5; i++) {
+                const a = Math.floor(Math.random() * 10);
+                const b = Math.floor(Math.random() * 10);
+                const type = Math.random() > 0.5 ? '+' : '-';
+                
+                let question, answer;
+                if (type === '+' || a >= b) {
+                    question = `${a} ${type} ${b} = ?`;
+                    answer = eval(a + type + b);
+                } else {
+                    question = `${b} - ${a} = ?`;
+                    answer = b - a;
+                }
+                
+                html += `<div class="problem">${question}<br>答案：<span style="color:red">${answer}</span></div>`;
+            }
+            document.getElementById('problems').innerHTML = html;
+        }
+        
+        // 首次載入時自動生成
+        generate();
+    </script>
+</body>
+</html>
