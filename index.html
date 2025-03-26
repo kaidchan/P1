@@ -3,18 +3,40 @@
 <head>
     <title>小一數學題生成器</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        .problem { font-size: 24px; margin: 20px; padding: 10px; border: 1px dashed #ccc; }
-        button { padding: 10px 20px; font-size: 16px; }
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
+        .problem { font-size: 24px; margin: 15px; padding: 10px; }
+        input { width: 50px; font-size: 20px; text-align: center; }
+        button { 
+            padding: 10px 20px; 
+            font-size: 16px; 
+            margin: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #score { 
+            font-size: 20px; 
+            font-weight: bold;
+            margin-top: 20px;
+            color: #2196F3;
+        }
+        .correct { color: green; }
+        .incorrect { color: red; text-decoration: line-through; }
     </style>
 </head>
 <body>
     <h1>小一數學練習題</h1>
     <div id="problems"></div>
-    <button onclick="generate()">生成新題目</button>
+    <button onclick="checkAnswers()">提交答案</button>
+    <button onclick="generate()">換新題目</button>
+    <div id="score"></div>
 
     <script>
+        let correctAnswers = [];
+        
         function generate() {
+            correctAnswers = [];
             let html = '';
             for (let i = 0; i < 5; i++) {
                 const a = Math.floor(Math.random() * 10);
@@ -23,19 +45,48 @@
                 
                 let question, answer;
                 if (type === '+' || a >= b) {
-                    question = `${a} ${type} ${b} = ?`;
+                    question = `${a} ${type} ${b} = `;
                     answer = eval(a + type + b);
                 } else {
-                    question = `${b} - ${a} = ?`;
+                    question = `${b} - ${a} = `;
                     answer = b - a;
                 }
                 
-                html += `<div class="problem">${question}<br>答案：<span style="color:red">${answer}</span></div>`;
+                correctAnswers.push(answer);
+                html += `
+                    <div class="problem">
+                        ${question}
+                        <input type="number" id="answer${i}" min="0" max="20">
+                        <span id="result${i}" class="result"></span>
+                    </div>`;
             }
             document.getElementById('problems').innerHTML = html;
+            document.getElementById('score').innerHTML = '';
         }
         
-        // 首次載入時自動生成
+        function checkAnswers() {
+            let score = 0;
+            let resultsHtml = '';
+            
+            for (let i = 0; i < 5; i++) {
+                const userAnswer = parseInt(document.getElementById(`answer${i}`).value);
+                const resultSpan = document.getElementById(`result${i}`);
+                
+                if (userAnswer === correctAnswers[i]) {
+                    score++;
+                    resultSpan.innerHTML = '✓';
+                    resultSpan.className = 'result correct';
+                } else {
+                    resultSpan.innerHTML = `✗ (正確答案: ${correctAnswers[i]})`;
+                    resultSpan.className = 'result incorrect';
+                }
+            }
+            
+            document.getElementById('score').innerHTML = 
+                `你的得分: ${score} / 5 | ${score >= 4 ? '很棒！' : '再試試看！'}`;
+        }
+        
+        // 首次載入時自動生成題目
         generate();
     </script>
 </body>
