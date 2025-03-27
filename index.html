@@ -1,93 +1,237 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>小一數學題生成器</title>
+    <title>勇者鬥惡龍數學挑戰</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
-        .problem { font-size: 24px; margin: 15px; padding: 10px; }
-        input { width: 50px; font-size: 20px; text-align: center; }
-        button { 
-            padding: 10px 20px; 
-            font-size: 16px; 
-            margin: 10px;
+        body { 
+            font-family: 'Arial', sans-serif; 
+            text-align: center; 
+            background: #f0f8ff; 
+            margin: 0;
+            padding: 20px;
+        }
+        #game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+        #hero, #dragon {
+            width: 200px;
+            position: absolute;
+            bottom: 50px;
+        }
+        #hero { left: 50px; }
+        #dragon { right: 50px; transform: scaleX(-1); }
+        #health-bars {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .health-bar {
+            height: 30px;
+            border: 2px solid #000;
+            width: 45%;
+            position: relative;
+        }
+        #hero-health { background: linear-gradient(to right, #ff0000, #ff4500); }
+        #dragon-health { background: linear-gradient(to left, #ff0000, #ff4500); }
+        .health-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        #battle-log {
+            height: 100px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 20px 0;
+            background: #fff;
+        }
+        #problem {
+            font-size: 32px;
+            margin: 20px;
+        }
+        input {
+            font-size: 24px;
+            padding: 5px;
+            width: 60px;
+            text-align: center;
+        }
+        button {
             background: #4CAF50;
             color: white;
             border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            margin: 10px;
             cursor: pointer;
+            border-radius: 5px;
         }
-        #score { 
-            font-size: 20px; 
+        #result {
+            font-size: 24px;
             font-weight: bold;
-            margin-top: 20px;
-            color: #2196F3;
+            margin: 10px;
+            min-height: 36px;
         }
-        .correct { color: green; }
-        .incorrect { color: red; text-decoration: line-through; }
+        .attack-animation {
+            animation: attack 0.3s;
+        }
+        @keyframes attack {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(50px); }
+            100% { transform: translateX(0); }
+        }
+        .hurt-animation {
+            animation: hurt 0.3s;
+        }
+        @keyframes hurt {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
     </style>
 </head>
 <body>
-    <h1>小一數學練習題</h1>
-    <div id="problems"></div>
-    <button onclick="checkAnswers()">提交答案</button>
-    <button onclick="generate()">換新題目</button>
-    <div id="score"></div>
+    <h1>勇者鬥惡龍數學挑戰</h1>
+    <div id="game-container">
+        <div id="health-bars">
+            <div class="health-bar" id="hero-health">
+                <div class="health-text">勇者: 10/10</div>
+            </div>
+            <div class="health-bar" id="dragon-health">
+                <div class="health-text">惡龍: 20/20</div>
+            </div>
+        </div>
+
+        <img id="hero" src="https://i.imgur.com/JqYeYnR.png" alt="勇者">
+        <img id="dragon" src="https://i.imgur.com/LbZ5g9O.png" alt="惡龍">
+
+        <div id="battle-log"></div>
+
+        <div id="problem"></div>
+        <input type="number" id="answer" min="0" max="100">
+        <button onclick="checkAnswer()">攻擊!</button>
+        <div id="result"></div>
+    </div>
 
     <script>
-        let correctAnswers = [];
-        
-        function generate() {
-            correctAnswers = [];
-            let html = '';
-            for (let i = 0; i < 5; i++) {
-                const a = Math.floor(Math.random() * 10);
-                const b = Math.floor(Math.random() * 10);
-                const type = Math.random() > 0.5 ? '+' : '-';
-                
-                let question, answer;
-                if (type === '+' || a >= b) {
-                    question = `${a} ${type} ${b} = `;
-                    answer = eval(a + type + b);
-                } else {
-                    question = `${b} - ${a} = `;
-                    answer = b - a;
-                }
-                
-                correctAnswers.push(answer);
-                html += `
-                    <div class="problem">
-                        ${question}
-                        <input type="number" id="answer${i}" min="0" max="20">
-                        <span id="result${i}" class="result"></span>
-                    </div>`;
+        // 遊戲狀態
+        const gameState = {
+            heroHP: 10,
+            dragonHP: 20,
+            currentProblem: null,
+            sounds: {
+                attack: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-sword-attack-1681.mp3'),
+                hurt: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-explosion-2759.mp3'),
+                win: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3'),
+                lose: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3')
             }
-            document.getElementById('problems').innerHTML = html;
-            document.getElementById('score').innerHTML = '';
-        }
-        
-        function checkAnswers() {
-            let score = 0;
-            let resultsHtml = '';
+        };
+
+        // 生成題目
+        function generateProblem() {
+            const a = Math.floor(Math.random() * 10) + 1;
+            const b = Math.floor(Math.random() * 10) + 1;
+            const type = Math.random() > 0.5 ? '+' : '-';
             
-            for (let i = 0; i < 5; i++) {
-                const userAnswer = parseInt(document.getElementById(`answer${i}`).value);
-                const resultSpan = document.getElementById(`result${i}`);
-                
-                if (userAnswer === correctAnswers[i]) {
-                    score++;
-                    resultSpan.innerHTML = '✓';
-                    resultSpan.className = 'result correct';
-                } else {
-                    resultSpan.innerHTML = `✗ (正確答案: ${correctAnswers[i]})`;
-                    resultSpan.className = 'result incorrect';
-                }
+            let problem, answer;
+            if (type === '+' || a >= b) {
+                problem = `${a} ${type} ${b} = ?`;
+                answer = eval(a + type + b);
+            } else {
+                problem = `${b} - ${a} = ?`;
+                answer = b - a;
             }
             
-            document.getElementById('score').innerHTML = 
-                `你的得分: ${score} / 5 | ${score >= 4 ? '很棒！' : '再試試看！'}`;
+            gameState.currentProblem = answer;
+            document.getElementById('problem').textContent = problem;
+            document.getElementById('answer').value = '';
+            document.getElementById('answer').focus();
         }
-        
-        // 首次載入時自動生成題目
-        generate();
+
+        // 檢查答案
+        function checkAnswer() {
+            const userAnswer = parseInt(document.getElementById('answer').value);
+            const resultDiv = document.getElementById('result');
+            const battleLog = document.getElementById('battle-log');
+            
+            if (isNaN(userAnswer)) {
+                resultDiv.textContent = '請輸入數字！';
+                return;
+            }
+
+            if (userAnswer === gameState.currentProblem) {
+                // 勇者攻擊
+                gameState.dragonHP--;
+                resultDiv.textContent = '勇者斬擊成功！';
+                battleLog.innerHTML += `<p>勇者對惡龍造成 1 點傷害！</p>`;
+                
+                document.getElementById('hero').classList.add('attack-animation');
+                gameState.sounds.attack.play().catch(e => console.log("音效自動播放被阻止"));
+                
+                setTimeout(() => {
+                    document.getElementById('hero').classList.remove('attack-animation');
+                    updateHealthBars();
+                    checkGameOver();
+                    if (gameState.dragonHP > 0) generateProblem();
+                }, 300);
+            } else {
+                // 惡龍反擊
+                gameState.heroHP--;
+                resultDiv.textContent = `答錯了！正確答案是 ${gameState.currentProblem}`;
+                battleLog.innerHTML += `<p>惡龍反擊！勇者受到 1 點傷害！</p>`;
+                
+                document.getElementById('dragon').classList.add('attack-animation');
+                document.getElementById('hero').classList.add('hurt-animation');
+                gameState.sounds.hurt.play().catch(e => console.log("音效自動播放被阻止"));
+                
+                setTimeout(() => {
+                    document.getElementById('dragon').classList.remove('attack-animation');
+                    document.getElementById('hero').classList.remove('hurt-animation');
+                    updateHealthBars();
+                    checkGameOver();
+                    if (gameState.heroHP > 0) generateProblem();
+                }, 300);
+            }
+            
+            battleLog.scrollTop = battleLog.scrollHeight;
+        }
+
+        // 更新血條
+        function updateHealthBars() {
+            document.getElementById('hero-health').style.width = `${(gameState.heroHP / 10) * 45}%`;
+            document.getElementById('dragon-health').style.width = `${(gameState.dragonHP / 20) * 45}%`;
+            document.querySelector('#hero-health .health-text').textContent = `勇者: ${gameState.heroHP}/10`;
+            document.querySelector('#dragon-health .health-text').textContent = `惡龍: ${gameState.dragonHP}/20`;
+        }
+
+        // 檢查遊戲結束
+        function checkGameOver() {
+            const resultDiv = document.getElementById('result');
+            
+            if (gameState.heroHP <= 0) {
+                resultDiv.textContent = '遊戲結束！勇者被打敗了！';
+                gameState.sounds.lose.play().catch(e => console.log("音效自動播放被阻止"));
+                disableGame();
+            } else if (gameState.dragonHP <= 0) {
+                resultDiv.textContent = '恭喜！勇者擊敗了惡龍！';
+                gameState.sounds.win.play().catch(e => console.log("音效自動播放被阻止"));
+                disableGame();
+            }
+        }
+
+        // 禁用遊戲
+        function disableGame() {
+            document.getElementById('answer').disabled = true;
+            document.querySelector('button').disabled = true;
+        }
+
+        // 初始化遊戲
+        generateProblem();
     </script>
 </body>
 </html>
