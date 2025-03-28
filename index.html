@@ -16,15 +16,13 @@
             position: relative;
             height: 400px;
         }
-        #hero, #hero-attack, #dragon, #dragon-attack {
+        #hero, #dragon {
             width: 200px;
             position: absolute;
             bottom: 50px;
-            transition: transform 0.2s;
         }
-        #hero, #hero-attack { left: 50px; }
-        #dragon, #dragon-attack { right: 50px; transform: scaleX(-1); }
-        #hero-attack, #dragon-attack { display: none; }
+        #hero { left: 50px; }
+        #dragon { right: 50px; transform: scaleX(-1); }
         #health-bars {
             display: flex;
             justify-content: space-between;
@@ -81,13 +79,11 @@
             margin: 10px;
             min-height: 36px;
         }
-        .attack-animation {
-            animation: attack 0.3s;
+        .gif-attack {
+            animation: attack 0.6s steps(4) infinite;
         }
         @keyframes attack {
-            0% { transform: translateX(0); }
-            50% { transform: translateX(50px); }
-            100% { transform: translateX(0); }
+            100% { background-position: -800px; } /* 假設GIF是4幀，每幀200px */
         }
     </style>
 </head>
@@ -103,13 +99,11 @@
             </div>
         </div>
 
-        <!-- 靜態角色 -->
-        <img id="hero" src="https://s1.chu0.com/src/img/gif/ed/ed748c275b7d46c98fbfb58daf352cdf.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:rkeQlB4iD3aksOGjNvwqiD7eKH4=" alt="勇者">
-        <img id="dragon" src="https://s1.chu0.com/prevfiles/2d16cfdda4614fdea8c1bdfd8e1a736b.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:D5SAJ1ccUWhSqY1m6xMkxfLi7mc=" alt="惡龍">
-        
-        <!-- 攻擊狀態角色 -->
-        <img id="hero-attack" src="https://s1.chu0.com/prevfiles/7bbcc861f166496d8772d39327980f35.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:hwDDmbFhcqyQgQAgmRU76hM9kbY=" alt="勇者攻擊" style="filter: brightness(1.2);">
-        <img id="dragon-attack" src="https://s1.chu0.com/prevfiles/515990c9657a4dfe854bc744a3289c5e.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:sDYMRsTmNpFD6GqtqhzTQCR30xA=" alt="惡龍攻擊" style="filter: brightness(1.2);">
+        <!-- 使用GIF圖片 -->
+        <img id="hero" src="https://s1.chu0.com/prevfiles/15a3a44225ff49148459a3033d7f1c11.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:EeDaMTsP8wnJ6eZV7RA5KVMUtbk=" alt="勇者">
+        <img id="hero-attack" src="https://s1.chu0.com/prevfiles/f6a618a08a244213bef7d6ba40d6d681.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:2unnZLocbPJO-pXZPgwJjOhXSPc=" alt="勇者攻擊" style="display:none; left:50px; position:absolute; width:200px; bottom:50px;">
+        <img id="dragon" src="https://s1.chu0.com/src/img/gif/a7/a79df90b98634016aff273c611760b37.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:YZxiN0kcyih7MBEoOAJFUlDywCQ=" alt="惡龍" style="transform: scaleX(-1);">
+        <img id="dragon-attack" src="https://s1.chu0.com/src/img/gif/db/db3fbf5ffee04056b6de450a3f17a1de.gif?e=2051020800&token=1srnZGLKZ0Aqlz6dk7yF4SkiYf4eP-YrEOdM1sob:RgUNwh0EoikFETwN0atfDr4X8co=" alt="惡龍攻擊" style="display:none; right:50px; position:absolute; width:200px; bottom:50px; transform: scaleX(-1);">
 
         <div id="battle-log"></div>
 
@@ -125,63 +119,61 @@
             heroHP: 10,
             dragonHP: 20,
             currentProblem: null,
-            sounds: {
-                attack: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-sword-attack-1681.mp3'),
-                hurt: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-explosion-2759.mp3'),
-                win: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3'),
-                lose: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3')
-            }
+            isAnimating: false
         };
 
-        // 生成題目 (2或3個數字，答案在0-50)
+        // 生成題目 (保證無負數，單一運算符)
         function generateProblem() {
-            const numCount = Math.random() > 0.5 ? 2 : 3; // 隨機2或3個數字
-            let problem = '';
-            let answer = 0;
+            let a, b, answer;
+            const isAddition = Math.random() > 0.5;
             
-            for (let i = 0; i < numCount; i++) {
-                const num = Math.floor(Math.random() * 25) + 1; // 1-25的數字
-                const operator = (i === 0) ? '' : (Math.random() > 0.5 ? '+' : '-');
-                
-                problem += operator + num;
-                answer = eval(answer + operator + num);
+            if (isAddition) {
+                a = Math.floor(Math.random() * 30) + 1; // 1-30
+                b = Math.floor(Math.random() * 20) + 1; // 1-20
+                answer = a + b;
+                while (answer > 50) { // 確保總和≤50
+                    a = Math.floor(Math.random() * 25) + 1;
+                    b = Math.floor(Math.random() * 15) + 1;
+                    answer = a + b;
+                }
+                gameState.currentProblem = answer;
+                document.getElementById('problem').textContent = `${a} + ${b} = ?`;
+            } else {
+                a = Math.floor(Math.random() * 30) + 10; // 10-39
+                b = Math.floor(Math.random() * (a-1)) + 1; // 確保b < a
+                answer = a - b;
+                gameState.currentProblem = answer;
+                document.getElementById('problem').textContent = `${a} - ${b} = ?`;
             }
             
-            // 確保答案在0-50範圍
-            while (answer < 0 || answer > 50) {
-                answer = generateProblem(); // 重新生成
-            }
-            
-            problem += ' = ?';
-            gameState.currentProblem = answer;
-            document.getElementById('problem').textContent = problem;
             document.getElementById('answer').value = '';
             document.getElementById('answer').focus();
-            return answer;
         }
 
-        // 攻擊動畫
-        function playAttackAnimation(attacker, defender) {
-            // 隱藏靜態圖，顯示攻擊圖
-            document.getElementById(attacker).style.display = 'none';
-            document.getElementById(attacker + '-attack').style.display = 'block';
+        // 播放攻擊動畫 (完整播放GIF)
+        function playAttackAnimation(attacker, callback) {
+            if (gameState.isAnimating) return;
+            gameState.isAnimating = true;
             
-            // 播放音效
-            if (attacker === 'hero') {
-                gameState.sounds.attack.play().catch(e => console.log("音效自動播放被阻止"));
-            } else {
-                gameState.sounds.hurt.play().catch(e => console.log("音效自動播放被阻止"));
-            }
+            const staticImg = document.getElementById(attacker);
+            const attackImg = document.getElementById(attacker + '-attack');
             
-            // 恢復靜態圖
+            staticImg.style.display = 'none';
+            attackImg.style.display = 'block';
+            
+            // 根據GIF長度設定動畫時間 (假設GIF為1秒)
             setTimeout(() => {
-                document.getElementById(attacker).style.display = 'block';
-                document.getElementById(attacker + '-attack').style.display = 'none';
-            }, 300);
+                staticImg.style.display = 'block';
+                attackImg.style.display = 'none';
+                gameState.isAnimating = false;
+                if (callback) callback();
+            }, 1000); // 與GIF動畫時間匹配
         }
 
         // 檢查答案
         function checkAnswer() {
+            if (gameState.isAnimating) return;
+            
             const userAnswer = parseInt(document.getElementById('answer').value);
             const resultDiv = document.getElementById('result');
             const battleLog = document.getElementById('battle-log');
@@ -191,25 +183,28 @@
                 return;
             }
 
-            if (userAnswer === gameState.currentProblem) {
+            if (userAnswer == gameState.currentProblem) { // 注意用 == 而非 ===
                 // 勇者攻擊
                 gameState.dragonHP--;
                 resultDiv.textContent = '勇者斬擊成功！';
                 battleLog.innerHTML += `<p>勇者對惡龍造成 1 點傷害！</p>`;
                 
-                playAttackAnimation('hero', 'dragon');
+                playAttackAnimation('hero', () => {
+                    updateHealthBars();
+                    if (!checkGameOver()) generateProblem();
+                });
             } else {
                 // 惡龍反擊
                 gameState.heroHP--;
                 resultDiv.textContent = `答錯了！正確答案是 ${gameState.currentProblem}`;
                 battleLog.innerHTML += `<p>惡龍反擊！勇者受到 1 點傷害！</p>`;
                 
-                playAttackAnimation('dragon', 'hero');
+                playAttackAnimation('dragon', () => {
+                    updateHealthBars();
+                    if (!checkGameOver()) generateProblem();
+                });
             }
             
-            updateHealthBars();
-            checkGameOver();
-            if (!isGameOver()) generateProblem();
             battleLog.scrollTop = battleLog.scrollHeight;
         }
 
@@ -221,24 +216,20 @@
             document.querySelector('#dragon-health .health-text').textContent = `惡龍: ${gameState.dragonHP}/20`;
         }
 
-        // 檢查遊戲是否結束
-        function isGameOver() {
-            return gameState.heroHP <= 0 || gameState.dragonHP <= 0;
-        }
-
         // 檢查遊戲結束
         function checkGameOver() {
             const resultDiv = document.getElementById('result');
             
             if (gameState.heroHP <= 0) {
                 resultDiv.textContent = '遊戲結束！勇者被打敗了！';
-                gameState.sounds.lose.play().catch(e => console.log("音效自動播放被阻止"));
                 disableGame();
+                return true;
             } else if (gameState.dragonHP <= 0) {
                 resultDiv.textContent = '恭喜！勇者擊敗了惡龍！';
-                gameState.sounds.win.play().catch(e => console.log("音效自動播放被阻止"));
                 disableGame();
+                return true;
             }
+            return false;
         }
 
         // 禁用遊戲
